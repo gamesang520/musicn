@@ -2,10 +2,11 @@ import got from 'got'
 import cliProgress from 'cli-progress'
 import prettyBytes from 'pretty-bytes'
 import { red, green } from 'colorette'
-import { pipeline } from 'stream/promises'
-import { join, basename } from 'path'
-import { existsSync, mkdirSync, createWriteStream, unlinkSync } from 'fs'
-import lyric from './services/lyric'
+import { pipeline } from 'node:stream/promises'
+import { join, basename } from 'node:path'
+import { unlink } from 'node:fs/promises'
+import { existsSync, mkdirSync, createWriteStream } from 'node:fs'
+import lyricDownload from './services/lyric'
 import type { SongInfo } from './types'
 
 const barList: cliProgress.SingleBar[] = []
@@ -34,7 +35,6 @@ const downloadSong = (song: SongInfo, index: number) => {
   let { songName, songDownloadUrl, lyricDownloadUrl, songSize, options } = song
   const { lyric: withLyric = false, path: targetDir = process.cwd(), service } = options
   return new Promise<boolean>(async (resolve) => {
-    // 防止因歌曲名重名导致下载时被覆盖
     if (songNameMap.has(songName)) {
       songNameMap.set(songName, Number(songNameMap.get(songName)) + 1)
       const [name, extension] = songName.split('.')
@@ -52,9 +52,10 @@ const downloadSong = (song: SongInfo, index: number) => {
 
     if (!existsSync(targetDir)) mkdirSync(targetDir)
 
-    // 是否下载歌词
     if (withLyric) {
-      await lyric[service](lrcPath, lyricDownloadUrl)
+      await lyricDownload[service](lrcPath, lyricDownloadUrl).catch(() => {
+        createWriteStream(lrcPath).write('[00:00.00]无歌词')
+      })
     }
 
     const onError = (err: any, songPath: string) => {
@@ -74,11 +75,9 @@ const downloadSong = (song: SongInfo, index: number) => {
     try {
       const fileReadStream = got.stream(songDownloadUrl)
       fileReadStream.on('response', async () => {
-        // 防止`onError`被调用两次
         fileReadStream.off('error', (err) => {
           onError(err, songPath)
         })
-
         await pipeline(fileReadStream, createWriteStream(songPath))
         unfinishedPathMap.delete(songPath)
         resolve(true)
@@ -98,6 +97,10 @@ const downloadSong = (song: SongInfo, index: number) => {
 }
 
 const download = (songs: SongInfo[]) => {
+  if (!songs.length) {
+    console.error(red('请选择歌曲'))
+    process.exit(1)
+  }
   console.log(green('下载开始...'))
   multiBar.on('stop', () => {
     let errorMessage = ''
@@ -116,16 +119,14 @@ const download = (songs: SongInfo[]) => {
       )
     )
   })
-  // 多种信号事件触发执行清理操作
-  ;['exit', 'SIGINT', 'SIGHUP', 'SIGBREAK', 'SIGTERM'].forEach((eventType) => {
-    process.on(eventType, () => {
-      // 删除已创建但未下载完全的文件
-      for (const item of unfinishedPathMap.keys()) {
-        if (existsSync(item)) unlinkSync(item)
-      }
+
+  const exitEventTypes = ['exit', 'SIGINT', 'SIGHUP', 'SIGBREAK', 'SIGTERM']
+  for (let i = 0; i < exitEventTypes.length; i++) {
+    process.on(exitEventTypes[i], () => {
+      Promise.all([...unfinishedPathMap.keys()].map((path) => unlink(path)))
       process.exit()
     })
-  })
+  }
   return Promise.all(songs.map((song, index) => downloadSong(song, index)))
 }
 export default download

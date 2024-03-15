@@ -1,6 +1,6 @@
 import got from 'got'
-import crypto from 'crypto'
-import { removePunctuation } from '../../utils'
+import { createHash } from 'node:crypto'
+import { removePunctuation, kgCookie } from '../../utils'
 import type { SearchSongInfo, SearchProps } from '../../types'
 
 export default async ({ text, pageNum, pageSize }: SearchProps) => {
@@ -10,27 +10,37 @@ export default async ({ text, pageNum, pageSize }: SearchProps) => {
   )}&page=${pageNum}`
   const {
     data: { info: searchSongs, total },
-  } = await got(searchUrl).json()
+  }: { data: { info: SearchSongInfo[]; total: number } } = await got(searchUrl).json()
   const totalSongCount = total || undefined
-  const detailResults = await Promise.all(
-    searchSongs.map(({ hash }: SearchSongInfo) => {
-      const detailUrl = `http://trackercdn.kugou.com/i/v2/?key=${crypto
-        .createHash('md5')
-        .update(`${hash}kgcloudv2`)
-        .digest('hex')}&hash=${hash}&br=hq&appid=1005&pid=2&cmd=25&behavior=play`
-      return got(detailUrl).json()
+  await Promise.all(
+    searchSongs.map(async (song) => {
+      const detailUrl = `http://trackercdn.kugou.com/i/v2/?key=${createHash('md5')
+        .update(`${song.hash}kgcloudv2`)
+        .digest('hex')}&hash=${song.hash}&br=hq&appid=1005&pid=2&cmd=25&behavior=play`
+      const coverUrl = `https://wwwapi.kugou.com/yy/index.php?r=play/getdata&hash=${song.hash}`
+      const { url = [], fileSize = 0 }: { url: string[]; fileSize: number } = await got(
+        detailUrl
+      ).json()
+      const {
+        data: { img },
+      }: { data: { img: string } } = await got(coverUrl, {
+        method: 'get',
+        headers: {
+          Cookie: kgCookie,
+        },
+      }).json()
+      const [artists, name] = removePunctuation(song.filename.replaceAll('、', ',')).split(' - ')
+      Object.assign(song, {
+        id: song.hash,
+        url: url[0],
+        cover: img,
+        size: fileSize,
+        disabled: !fileSize,
+        songName: `${name} - ${artists}.mp3`,
+        lyricUrl: `http://lyrics.kugou.com/search?ver=1&man=yes&client=pc&hash=${song.hash}`,
+      })
     })
   )
-  searchSongs.map((item: SearchSongInfo, index: number) => {
-    const { url = [], fileSize = 0 }: any = detailResults[index]
-    Object.assign(item, {
-      url: url[0],
-      size: fileSize,
-      disabled: !fileSize,
-      songName: `${removePunctuation(item.filename.replaceAll('、', ','))}.mp3`,
-      lyricUrl: `http://lyrics.kugou.com/search?ver=1&man=yes&client=pc&hash=${item.hash}`,
-    })
-  })
   return {
     searchSongs,
     totalSongCount,

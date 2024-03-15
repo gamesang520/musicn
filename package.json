@@ -1,16 +1,17 @@
 {
   "name": "musicn",
-  "version": "1.4.44",
+  "version": "1.5.3-beta.0",
   "description": "Download music in your command line",
   "bin": {
     "musicn": "bin/cli.js",
     "msc": "bin/cli.js"
   },
   "scripts": {
+    "dev": "cross-env IS_DEV=true esno ./src/index.ts",
     "start": "vercel dev",
     "deploy": "vercel --prod",
+    "build": "tsup",
     "lint": "eslint --ext .ts src/",
-    "musicn-build": "tsup",
     "prepare": "husky install",
     "release": "bumpp --commit --push --tag",
     "test": "vitest"
@@ -42,6 +43,7 @@
   "files": [
     "dist",
     "bin",
+    "public",
     "template",
     "README.md"
   ],
@@ -57,7 +59,8 @@
     "colorette": "2.0.19",
     "express": "^4.18.2",
     "got": "12.3.1",
-    "inquirer": "^9.2.6",
+    "inquirer": "^9.2.9",
+    "open": "^9.1.0",
     "ora": "6.1.2",
     "portfinder": "^1.0.32",
     "pretty-bytes": "6.0.0",
@@ -76,12 +79,13 @@
     "@typescript-eslint/eslint-plugin": "5.33.1",
     "@typescript-eslint/parser": "5.33.1",
     "bumpp": "8.2.1",
+    "cross-env": "^7.0.3",
     "eslint": "8.22.0",
     "eslint-config-prettier": "8.5.0",
     "eslint-plugin-import": "2.26.0",
     "eslint-plugin-prettier": "4.2.1",
     "esno": "^0.16.3",
-    "globby": "^13.1.4",
+    "globby": "^13.2.2",
     "husky": "8.0.1",
     "lint-staged": "13.0.3",
     "path-exists": "^5.0.0",

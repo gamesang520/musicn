@@ -1,5 +1,6 @@
 export interface Artist {
   name: string
+  img1v1Url?: string
 }
 
 export interface RateFormat {
@@ -9,6 +10,11 @@ export interface RateFormat {
   androidFileType?: string
   url: string
   androidUrl: string
+}
+
+interface MiguImgType {
+  imgSizeType: string
+  img: string
 }
 
 export type ServiceType = 'migu' | 'kuwo' | 'wangyi' | 'kugou'
@@ -26,6 +32,8 @@ export interface CommandOptions {
   port?: string
   songListId: string
   service: ServiceType
+  open?: boolean
+  base?: string
 }
 
 export interface SearchSongInfo {
@@ -45,11 +53,14 @@ export interface SearchSongInfo {
   fileSize: number
   ARTIST: string
   artist: string
+  cover: string
   artists: Artist[]
   singers: Artist[]
   ar: Artist[]
+  lrc?: string
   newRateFormats?: RateFormat[]
   rateFormats?: RateFormat[]
+  imgItems: MiguImgType[]
 }
 
 export interface SearchProps {

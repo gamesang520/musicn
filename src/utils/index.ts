@@ -1,6 +1,6 @@
-import https from 'https'
-import { networkInterfaces } from 'os'
-import { inflate } from 'zlib'
+import { get } from 'node:https'
+import { networkInterfaces } from 'node:os'
+import { inflate } from 'node:zlib'
 import {
   createCipheriv,
   publicEncrypt,
@@ -8,7 +8,8 @@ import {
   constants,
   BinaryLike,
   CipherKey,
-} from 'crypto'
+} from 'node:crypto'
+import type { Request } from 'got'
 import type { Artist } from '../types'
 
 const iv = Buffer.from('0102030405060708')
@@ -16,6 +17,9 @@ const presetKey = Buffer.from('0CoJUm6Qyw8W8jud')
 const base62 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 const publicKey =
   '-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDgtQn2JZ34ZC28NWYpAUd98iZ37BUrX/aKzmFbt7clFSs6sXqHauqKWqdtLkF2KexO40H1YTX8z2lSgBBOAxLsvaklV8k4cBFK9snQXE9/DDaFt6Rr7iVZMldczhC0JNgTz+SHXT6CBHuX3e9SdB1Ua44oncaTWz7OBGLbCiK45wIDAQAB\n-----END PUBLIC KEY-----'
+
+export const kgCookie =
+  'kg_mid=e7c09bf4e2ff701959e419aa6259f5e1; kg_dfid=2UHiuH0E3doo4ZW8ud01Teb3; kg_dfid_collect=d41d8cd98f00b204e9800998ecf8427e; Hm_lvt_aedee6983d4cfc62f509129360d6bb3d=1690770238; musicwo17=kugou; Hm_lpvt_aedee6983d4cfc62f509129360d6bb3d=1690771797'
 
 export const getNetworkAddress = () => {
   for (const interfaceDetails of Object.values(networkInterfaces())) {
@@ -38,30 +42,28 @@ export const joinSingersName = (singers: Artist[]) => {
 
 export const getSongSizeByUrl = (url: string) => {
   if (!url) return Promise.resolve(0)
-  return new Promise(async (resolve) => {
-    https
-      .get(
-        url,
-        {
-          rejectUnauthorized: false,
-        },
-        (res) => {
-          const length = parseInt(<string>res.headers['content-length'])
-          if (!isNaN(length) && res.statusCode === 200) {
-            resolve(length)
-          } else {
-            resolve(0)
-          }
+  return new Promise((resolve) => {
+    get(
+      url,
+      {
+        rejectUnauthorized: false,
+      },
+      (res) => {
+        const length = parseInt(<string>res.headers['content-length'])
+        if (!isNaN(length) && res.statusCode === 200) {
+          resolve(length)
+        } else {
+          resolve(0)
         }
-      )
-      .on('error', () => {
-        resolve(0)
-      })
+      }
+    ).on('error', () => {
+      resolve(0)
+    })
   })
 }
 
 // https://github.com/lyswhut/lx-music-desktop/issues/296#issuecomment-683285784
-const enc_key = Buffer.from(
+const encKey = Buffer.from(
   // @ts-ignore
   [0x40, 0x47, 0x61, 0x77, 0x5e, 0x32, 0x74, 0x47, 0x51, 0x36, 0x31, 0x2d, 0xce, 0xd2, 0x6e, 0x69],
   'binary'
@@ -69,11 +71,11 @@ const enc_key = Buffer.from(
 export const decodeLyric = (str: string) =>
   new Promise((resolve, reject) => {
     if (!str.length) return
-    const buf_str = Buffer.from(str, 'base64').slice(4)
-    for (let i = 0, len = buf_str.length; i < len; i++) {
-      buf_str[i] = buf_str[i] ^ enc_key[i % 16]
+    const bufStr = Buffer.from(str, 'base64').slice(4)
+    for (let i = 0, len = bufStr.length; i < len; i++) {
+      bufStr[i] = bufStr[i] ^ encKey[i % 16]
     }
-    inflate(buf_str, (err, result) => {
+    inflate(bufStr, (err, result) => {
       if (err) return reject(err)
       resolve(result.toString())
     })
@@ -90,6 +92,7 @@ const encodeNames = {
   '&apos;': "'",
   '&#039;': "'",
 }
+
 const decodeName = (str = '') =>
   // @ts-ignore
   str?.replace(/(?:&amp;|&lt;|&gt;|&quot;|&apos;|&#039;|&nbsp;)/gm, (s) => encodeNames[s]) || ''
@@ -164,4 +167,26 @@ export const encryptParams = (object: { c: string; ids: string }) => {
     ).toString('base64'),
     encSecKey: rsaEncrypt(secretKey.reverse(), publicKey).toString('hex'),
   }
+}
+
+export const convertToStandardTime = (timeStr: string) => {
+  const timeInSec = parseFloat(timeStr)
+  const hours = Math.floor(timeInSec / 3600)
+  const minutes = Math.floor((timeInSec - hours * 3600) / 60)
+  const seconds = Math.floor(timeInSec - hours * 3600 - minutes * 60)
+  const milliseconds = Math.round((timeInSec - Math.floor(timeInSec)) * 100)
+
+  const minutesStr = minutes.toString().padStart(2, '0')
+  const secondsStr = seconds.toString().padStart(2, '0')
+  const millisecondsStr = milliseconds.toString().padStart(2, '0')
+
+  return `${minutesStr}:${secondsStr}.${millisecondsStr}`
+}
+
+export const streamToString = async (stream: Request) => {
+  const chunks = []
+  for await (const chunk of stream) {
+    chunks.push(Buffer.from(chunk))
+  }
+  return Buffer.concat(chunks).toString('utf-8')
 }

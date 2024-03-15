@@ -1,14 +1,24 @@
 import got from 'got'
-import { createWriteStream } from 'fs'
+import { createWriteStream } from 'node:fs'
+import { convertToStandardTime } from '../../utils'
 
-export default async (lrcPath: string, lyricDownloadUrl: string) => {
+export default async (lrcPath: string | null, lyricDownloadUrl: string) => {
   const {
     data: { lrclist },
-  } = await got(lyricDownloadUrl).json()
+  }: { data: { lrclist: { time: string; lineLyric: string }[] } } = await got(
+    lyricDownloadUrl
+  ).json()
   let lyric = ''
-  for (const lrc of lrclist) {
-    lyric += `[${lrc.time}] ${lrc.lineLyric}\n`
+  if (lrclist && lrclist.length) {
+    for (const lrc of lrclist) {
+      lyric += `[${convertToStandardTime(lrc.time)}]${lrc.lineLyric}\n`
+    }
+  } else {
+    lyric = '[00:00.00]无歌词'
   }
-  const lrcFileWriteStream = createWriteStream(lrcPath)
-  lrcFileWriteStream.write(lyric)
+  if (lrcPath) {
+    const lrcFileWriteStream = createWriteStream(lrcPath)
+    lrcFileWriteStream.write(lyric)
+  }
+  if (!lrcPath) return lyric
 }

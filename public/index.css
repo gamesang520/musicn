@@ -1,0 +1,59 @@
+#app {
+  padding: 20px 20px 0px 20px;
+}
+#aplayer {
+  position: absolute;
+  width: 99.5%;
+  bottom: 0;
+}
+.aplayer.aplayer-withlist
+  .aplayer-info
+  .aplayer-controller
+  .aplayer-time
+  .aplayer-icon.aplayer-icon-menu {
+  display: none;
+}
+.top-wrapper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.anticon-left,
+.anticon-right,
+.anticon-double-right {
+  margin-top: 30%;
+}
+.anticon-caret-right {
+  font-size: 18px;
+  padding-left: 8%;
+}
+.ant-list-item-meta-title {
+  margin-top: 6px;
+}
+.ant-list-items {
+  padding-right: 24px;
+  overflow: auto;
+  height: calc(100vh - 236px);
+}
+.ant-input-search {
+  width: 240px;
+}
+.list-item-click {
+  cursor: pointer;
+}
+.list-item-disabled {
+  cursor: not-allowed;
+}
+.list-item-disabled:active {
+  pointer-events: none;
+}
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background-color: #eeeeee;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #cccccc;
+}

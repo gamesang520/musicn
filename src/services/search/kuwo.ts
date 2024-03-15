@@ -30,15 +30,17 @@ export default async ({ text, pageNum, pageSize, songListId }: SearchProps) => {
       }&type=1`
       const {
         data: { url },
-      }: any = await got(detailUrl).json()
+      }: { data: { url: string } } = await got(detailUrl).json()
       const size = await getSongSizeByUrl(url)
       const artist = item.ARTIST || item.artist
       Object.assign(item, {
+        id: item.DC_TARGETID || item.id,
         url,
         size,
         disabled: !size,
-        songName: `${artist.replaceAll('&', ',')} - ${removePunctuation(
-          item.NAME || item.name
+        songName: `${removePunctuation(item.NAME || item.name)} - ${artist.replaceAll(
+          '&',
+          ','
         )}.mp3`,
         lyricUrl: `https://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId=${item.DC_TARGETID}`,
       })
